@@ -1,13 +1,14 @@
 import logging
 from io import BytesIO
 from pathlib import Path
+import os
 
 import requests
 from PIL import Image
 
 from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, IMAGE_FOLDER,
                                NAME_OF_FRAME, NEW_IMAGE_FOLDER,
-                               RGB_COLOR_SETTINGS)
+                               RGB_COLOR_SETTINGS, HEADERS)
 from handler.decorators import time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
 from handler.logging_config import setup_logging
@@ -41,39 +42,43 @@ class FeedImage(FileMixin):
         self._existing_image_offers: set[str] = set()
         self._existing_framed_offers: set[str] = set()
 
-    def _get_image_data(self, url: str) -> tuple:
+    def _get_image_data(self, url: str):
+        """
+        Защищенный метод, загружает данные изображения
+        и возвращает (image_data, image_format).
+        """
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-                "Referer": "https://www.yves-rocher.ru/catalog/",
-                "Origin": "https://www.yves-rocher.ru",
-            }
-
-            response = requests.get(url, headers=headers, timeout=20)
+            response = requests.get(url, headers=HEADERS, timeout=10)
             response.raise_for_status()
+            # image = Image.open(BytesIO(response.content))
+            # image_format = image.format.lower() if image.format else 'jpg'
+            # return response.content, image_format
+            return response.content
 
-            image = Image.open(BytesIO(response.content))
-            image_format = image.format.lower() if image.format else None
-
-            return response.content, image_format
-
+        except requests.exceptions.HTTPError as error:
+            if response.status_code == 403:
+                logging.warning('Доступ запрещен (403) для %s', url)
+            else:
+                logging.error(
+                    'HTTP ошибка %s при загрузке %s: %s',
+                    response.status_code,
+                    url,
+                    error
+                )
+            return None
         except Exception as error:
-            logging.error('Ошибка сети при загрузке URL %s: %s', url, error)
-            return None, None
+            logging.error('Ошибка при загрузке изображения %s: %s', url, error)
+            return None
 
     def _get_image_filename(
         self,
         offer_id: str,
         image_data: bytes,
-        image_format: str
     ) -> str:
         """Защищенный метод, создает имя файла с изображением."""
-        if not image_data or not image_format:
+        if not image_data:
             return ''
-        return f'{offer_id}.{image_format}'
+        return f'{offer_id}.png'
 
     def _save_image(
         self,
@@ -103,7 +108,7 @@ class FeedImage(FileMixin):
                     'https://api.ba-la.ru/api/remove',
                     files={'mediaFile': f},
                     headers={
-                        'api-key': 'kjDIb88aVxWcAdlJO8v9yniGDwMS7O59L9c9CK8jLy'
+                        'api-key': os.getenv('RM_BG_API_KEY', 'boobs')
                     },
                 )
             response.raise_for_status()
@@ -156,12 +161,10 @@ class FeedImage(FileMixin):
                         offers_skipped_existing += 1
                         continue
 
-                    image_data, image_format = self._get_image_data(
-                        offer_image)
+                    image_data = self._get_image_data(offer_image)
                     image_filename = self._get_image_filename(
                         offer_id,
-                        image_data,
-                        image_format
+                        image_data
                     )
 
                     if not image_filename:
