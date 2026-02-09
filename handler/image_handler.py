@@ -2,13 +2,14 @@ import logging
 from io import BytesIO
 from pathlib import Path
 import os
-
+from urllib.parse import urljoin
 import requests
 from PIL import Image
+import time
 
 from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, IMAGE_FOLDER,
                                NAME_OF_FRAME, NEW_IMAGE_FOLDER,
-                               RGB_COLOR_SETTINGS, HEADERS)
+                               RGB_COLOR_SETTINGS, HEADERS, BASE_URL)
 from handler.decorators import time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
 from handler.logging_config import setup_logging
@@ -102,19 +103,43 @@ class FeedImage(FileMixin):
             )
 
     def _remove_bg(self, filepath, imagename):
+        file_path = Path(filepath) / imagename
+        api_key = os.getenv('RM_BG_API_KEY')
+
         try:
-            with open(filepath / imagename, 'rb') as f:
+            with open(file_path, 'rb') as f:
                 response = requests.post(
                     'https://api.ba-la.ru/api/remove',
-                    files={'mediaFile': f},
-                    headers={
-                        'api-key': os.getenv('RM_BG_API_KEY', 'boobs')
-                    },
+                    files={'mediaFile': (imagename, f, 'image/png')},
+                    headers={'api-key': api_key},
+                    timeout=30
                 )
             response.raise_for_status()
-            return response.content
+            data = response.json()
+
+            no_bg_path = next(
+                (item['path'] for item in data if item.get('slug') == 'no-bg'),
+                None
+            )
+
+            if not no_bg_path:
+                logging.error('API не вернул ссылку на изображение без фона')
+                return None
+
+            no_bg_url = urljoin(BASE_URL, no_bg_path)
+            time.sleep(1)
+            download = requests.get(
+                no_bg_url,
+                headers={'api-key': api_key},
+                timeout=(10, 60)
+            )
+            download.raise_for_status()
+
+            logging.info('Фон удалён и файл скачан')
+            return download.content
+
         except Exception as error:
-            logging.error('Ошибка во время удаления фона: %s', error)
+            logging.error('Ошибка удаления фона: %s', error)
             return None
 
     @time_of_function

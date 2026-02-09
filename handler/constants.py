@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_URL = 'https://api.ba-la.ru/'
+"""Домен API для удаления фона."""
+
 ADDRESS_FTP_IMAGES = 'https://feeds.i-media.ru/projects/yvesrocher/new_images'
 """Адрес директории на ftp для изображений."""
 
