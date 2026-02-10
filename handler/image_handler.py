@@ -4,11 +4,11 @@ from pathlib import Path
 import os
 from urllib.parse import urljoin
 import requests
-from PIL import Image
+from PIL import Image, ImageFilter
 import time
 
 from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, IMAGE_FOLDER,
-                               NAME_OF_FRAME, NEW_IMAGE_FOLDER,
+                               NAME_OF_CANVAS, NEW_IMAGE_FOLDER,
                                RGB_COLOR_SETTINGS, HEADERS, BASE_URL)
 from handler.decorators import time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
@@ -109,34 +109,19 @@ class FeedImage(FileMixin):
         try:
             with open(file_path, 'rb') as f:
                 response = requests.post(
-                    'https://api.ba-la.ru/api/remove',
-                    files={'mediaFile': (imagename, f, 'image/png')},
-                    headers={'api-key': api_key},
-                    timeout=30
+                    'https://image-api.photoroom.com/v2/edit',
+                    files={"imageFile": f},
+                    data={
+                        "removeBackground": "true"
+                    },
+                    headers={
+                        "x-api-key": api_key
+                    },
+                    timeout=60
                 )
             response.raise_for_status()
-            data = response.json()
-
-            no_bg_path = next(
-                (item['path'] for item in data if item.get('slug') == 'no-bg'),
-                None
-            )
-
-            if not no_bg_path:
-                logging.error('API не вернул ссылку на изображение без фона')
-                return None
-
-            no_bg_url = urljoin(BASE_URL, no_bg_path)
-            time.sleep(1)
-            download = requests.get(
-                no_bg_url,
-                headers={'api-key': api_key},
-                timeout=(10, 60)
-            )
-            download.raise_for_status()
-
-            logging.info('Фон удалён и файл скачан')
-            return download.content
+            logging.info('Фон успешно удалён PhotoRoom')
+            return response.content
 
         except Exception as error:
             logging.error('Ошибка удаления фона: %s', error)
@@ -225,7 +210,7 @@ class FeedImage(FileMixin):
 
     @time_of_function
     def add_frame(self):
-        """Метод форматирует изображения и добавляет рамку."""
+        """Накладывает PNG без фона на дизайнерскую подложку."""
         file_path = self._make_dir(self.image_folder)
         frame_path = self._make_dir(self.frame_folder)
         new_file_path = self._make_dir(self.new_image_folder)
@@ -244,9 +229,9 @@ class FeedImage(FileMixin):
                 'Первый запуск'
             )
         try:
-            frame = Image.open(frame_path / NAME_OF_FRAME)
+            canvas = Image.open(frame_path / NAME_OF_CANVAS).convert('RGBA')
         except Exception as error:
-            logging.error('Не удалось загрузить рамку: %s', error)
+            logging.error('Не удалось загрузить подложку: %s', error)
             return
         try:
             for image_name in self.images:
@@ -257,7 +242,6 @@ class FeedImage(FileMixin):
                     with Image.open(file_path / image_name) as image:
                         image = image.convert('RGBA')
                         image.load()
-                        # image_width, image_height = image.size
                 except Exception as error:
                     total_failed_images += 1
                     logging.error(
@@ -267,36 +251,23 @@ class FeedImage(FileMixin):
                     )
                     continue
 
-                canvas_width = 1000
-                canvas_height = 1000
+                max_product_height = int(canvas.height * 0.6)
+                scale = max_product_height / image.height
+                new_size = (int(image.width * scale),
+                            int(image.height * scale))
+                image = image.resize(new_size, Image.Resampling.LANCZOS)
 
-                final_image = Image.new(
-                    'RGB',
-                    (canvas_width, canvas_height),
-                    RGB_COLOR_SETTINGS
-                )
-                final_image.paste(frame, (350, 630), frame)
-                final_image.paste(image, (100, 100))
-                final_image = final_image.convert('RGB')
+                product_x = (canvas.width - image.width) // 2
+                visual_center_y = int(canvas.height * 0.56)
+                product_y = int(visual_center_y - image.height / 2)
+
+                final_image = canvas.copy()
+                final_image.paste(image, (product_x, product_y), image)
                 final_image.save(
-                    new_file_path / f"{image_name.split('.')[0]}.png",
-                    'PNG'
-                )
-
+                    new_file_path / f"{image_name.split('.')[0]}.png", 'PNG')
                 total_framed_images += 1
-            logging.info(
-                '\nВсего изображений - %s'
-                '\nКоличество изображений, к которым добавлена рамка - %s'
-                '\nКоличество уже обрамленных изображений - %s'
-                '\nКоличество изображений обрамленных неудачно - %s',
-                len(self.images),
-                total_framed_images,
-                skipped_images,
-                total_failed_images
-            )
+
         except Exception as error:
             logging.error(
-                'Критическая ошибка в процессе обрамления: %s',
-                error
-            )
+                'Критическая ошибка в процессе обрамления: %s', error)
             raise

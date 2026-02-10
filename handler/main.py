@@ -24,7 +24,7 @@ def main():
             f'Директория {FEEDS_FOLDER} не содержит файлов'
         )
     image_client = FeedImage(filenames, images=[])
-    image_client.get_images()
+    # image_client.get_images()
     images = get_filenames_list(IMAGE_FOLDER)
 
     if not images:

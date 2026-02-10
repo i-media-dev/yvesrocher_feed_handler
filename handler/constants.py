@@ -46,7 +46,7 @@ NUMBER_PIXELS_IMAGE = 200
 NAME_OF_SHOP = 'furure'
 """Константа названия магазина."""
 
-NAME_OF_FRAME = 'canvas.png'
+NAME_OF_CANVAS = 'canvas.png'
 
 FRAME_FOLDER = os.getenv('FRAME_FOLDER', 'frame')
 """Константа стокового названия директории c рамкой"""
