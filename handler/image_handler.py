@@ -1,16 +1,12 @@
 import logging
 import os
-import time
-from io import BytesIO
 from pathlib import Path
-from urllib.parse import urljoin
 
 import requests
-from PIL import Image, ImageFilter
+from PIL import Image
 
-from handler.constants import (BASE_URL, FEEDS_FOLDER, FRAME_FOLDER, HEADERS,
-                               IMAGE_FOLDER, NAME_OF_CANVAS, NEW_IMAGE_FOLDER,
-                               RGB_COLOR_SETTINGS)
+from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, HEADERS,
+                               IMAGE_FOLDER, NAME_OF_CANVAS, NEW_IMAGE_FOLDER)
 from handler.decorators import time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
 from handler.logging_config import setup_logging
@@ -83,11 +79,7 @@ class FeedImage(FileMixin):
         try:
             response = requests.get(url, headers=HEADERS, timeout=10)
             response.raise_for_status()
-            # image = Image.open(BytesIO(response.content))
-            # image_format = image.format.lower() if image.format else 'jpg'
-            # return response.content, image_format
             return response.content
-
         except requests.exceptions.HTTPError as error:
             if response.status_code == 403:
                 logging.warning('Доступ запрещен (403) для %s', url)
@@ -204,6 +196,10 @@ class FeedImage(FileMixin):
                         continue
 
                     image_data = self._get_image_data(offer_image)
+
+                    if not image_data:
+                        continue
+
                     image_filename = self._get_image_filename(
                         offer_id,
                         image_data
@@ -286,8 +282,10 @@ class FeedImage(FileMixin):
 
                 max_product_height = int(canvas.height * 0.6)
                 scale = max_product_height / image.height
-                new_size = (int(image.width * scale),
-                            int(image.height * scale))
+                new_size = (
+                    int(image.width * scale),
+                    int(image.height * scale)
+                )
                 image = image.resize(new_size, Image.Resampling.LANCZOS)
 
                 product_x = (canvas.width - image.width) // 2
