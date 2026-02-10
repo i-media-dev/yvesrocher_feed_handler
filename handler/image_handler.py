@@ -1,15 +1,16 @@
 import logging
+import os
+import time
 from io import BytesIO
 from pathlib import Path
-import os
 from urllib.parse import urljoin
+
 import requests
 from PIL import Image, ImageFilter
-import time
 
-from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, IMAGE_FOLDER,
-                               NAME_OF_CANVAS, NEW_IMAGE_FOLDER,
-                               RGB_COLOR_SETTINGS, HEADERS, BASE_URL)
+from handler.constants import (BASE_URL, FEEDS_FOLDER, FRAME_FOLDER, HEADERS,
+                               IMAGE_FOLDER, NAME_OF_CANVAS, NEW_IMAGE_FOLDER,
+                               RGB_COLOR_SETTINGS)
 from handler.decorators import time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
 from handler.logging_config import setup_logging
@@ -42,6 +43,37 @@ class FeedImage(FileMixin):
         self.new_image_folder = new_image_folder
         self._existing_image_offers: set[str] = set()
         self._existing_framed_offers: set[str] = set()
+
+    # def _get_image_data_with_bg(self, url: str) -> tuple:
+    #     """
+    #     Защищенный метод, загружает данные изображения
+    #     и возвращает (image_data, image_format).
+    #     """
+    #     response_content = None
+    #     try:
+    #         response = requests.get(url, headers=HEADERS, timeout=10)
+    #         response.raise_for_status()
+    #         response_content = response.content
+    #         image = Image.open(BytesIO(response_content))
+    #         image_format = image.format.lower() if image.format else None
+    #         return response_content, image_format
+    #     except requests.exceptions.RequestException as error:
+    #         logging.error('Ошибка сети при загрузке URL %s: %s', url, error)
+    #         return None, None
+    #     except IOError as error:
+    #         logging.error(
+    #             'Pillow не смог распознать изображение из URL %s: %s',
+    #             url,
+    #             error
+    #         )
+    #         return None, None
+    #     except Exception as error:
+    #         logging.error(
+    #             'Непредвиденная ошибка при обработке изображения %s: %s',
+    #             url,
+    #             error
+    #         )
+    #         return None, None
 
     def _get_image_data(self, url: str):
         """
@@ -209,7 +241,7 @@ class FeedImage(FileMixin):
             )
 
     @time_of_function
-    def add_frame(self):
+    def add_background(self):
         """Накладывает PNG без фона на дизайнерскую подложку."""
         file_path = self._make_dir(self.image_folder)
         frame_path = self._make_dir(self.frame_folder)
@@ -230,6 +262,7 @@ class FeedImage(FileMixin):
             )
         try:
             canvas = Image.open(frame_path / NAME_OF_CANVAS).convert('RGBA')
+            canvas = canvas.resize((1000, 1000), Image.Resampling.LANCZOS)
         except Exception as error:
             logging.error('Не удалось загрузить подложку: %s', error)
             return
@@ -271,3 +304,116 @@ class FeedImage(FileMixin):
             logging.error(
                 'Критическая ошибка в процессе обрамления: %s', error)
             raise
+
+    # def add_ai_bg(self):
+    #     bg_path = self._make_dir('frame')
+    #     api_key = os.getenv('RM_BG_API_KEY')
+    #     new_file_path = self._make_dir(self.new_image_folder)
+    #     product_path = self._make_dir(self.image_folder)
+    #     try:
+    #         for image_name in self.images:
+    #             with open(
+    #                 product_path / image_name, 'rb'
+    #             ) as prod, open(bg_path / 'canvas.png', 'rb') as bg:
+    #                 response = requests.post(
+    #                     'https://image-api.photoroom.com/v2/edit',
+    #                     files={
+    #                         "imageFile": prod,
+    #                         "background.imageFile": bg
+    #                     },
+    #                     data={
+    #                         "background.mode": "replace",
+    #                         "shadow.mode": "ai.soft",
+    #                         "position": "center",
+    #                         "scale": "0.35"
+    #                     },
+    #                     headers={
+    #                         "x-api-key": api_key
+    #                     },
+    #                     timeout=60
+    #                 )
+    #             response.raise_for_status()
+    #             image = Image.open(BytesIO(
+    #                 response.content)).convert("RGBA")
+    #             image.save(new_file_path /
+    #                        f"{image_name.split('.')[0]}.png", 'PNG')
+
+    #     except Exception as error:
+    #         logging.error('Ошибка удаления фона: %s', error)
+    #         return None
+
+    # @time_of_function
+    # def get_images_with_bg(self):
+    #     """Метод получения и сохранения изображений из xml-файла."""
+    #     total_offers_processed = 0
+    #     offers_with_images = 0
+    #     images_downloaded = 0
+    #     offers_skipped_existing = 0
+
+    #     try:
+    #         self._build_set(
+    #             self.image_folder,
+    #             self._existing_image_offers
+    #         )
+    #     except (DirectoryCreationError, EmptyFeedsListError):
+    #         logging.warning(
+    #             'Директория с изображениями отсутствует. Первый запуск'
+    #         )
+    #     try:
+    #         for filename in self.filenames:
+    #             root = self._get_root(filename, self.feeds_folder)
+    #             offers = root.findall('.//offer')
+
+    #             if not offers:
+    #                 logging.debug('В файле %s не найдено offers', filename)
+    #                 return
+
+    #             for offer in offers:
+    #                 offer_id = str(offer.get('id'))
+    #                 total_offers_processed += 1
+
+    #                 picture = offer.find('picture')
+    #                 if picture is None:
+    #                     continue
+
+    #                 offer_image = picture.text
+    #                 if not offer_image:
+    #                     continue
+
+    #                 offers_with_images += 1
+
+    #                 if offer_id in self._existing_image_offers:
+    #                     offers_skipped_existing += 1
+    #                     continue
+
+    #                 image_data, image_format = self._get_image_data_with_bg(
+    #                     offer_image
+    #                 )
+    #                 image_filename = self._get_image_filename(
+    #                     offer_id,
+    #                     image_data,
+    #                 )
+    #                 folder_path = self._make_dir(self.image_folder)
+    #                 self._save_image(
+    #                     image_data,
+    #                     folder_path,
+    #                     image_filename
+    #                 )
+    #                 images_downloaded += 1
+    #         logging.info(
+    #             '\nВсего обработано фидов - %s'
+    #             '\nВсего обработано офферов - %s'
+    #             '\nВсего офферов с подходящими изображениями - %s'
+    #             '\nВсего изображений скачано - %s'
+    #             '\nПропущено офферов с уже скачанными изображениями - %s',
+    #             len(self.filenames),
+    #             total_offers_processed,
+    #             offers_with_images,
+    #             images_downloaded,
+    #             offers_skipped_existing
+    #         )
+    #     except Exception as error:
+    #         logging.error(
+    #             'Неожиданная ошибка при получении изображений: %s',
+    #             error
+    #         )

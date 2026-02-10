@@ -4,9 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = 'https://api.ba-la.ru/'
-"""Домен API для удаления фона."""
-
 ADDRESS_FTP_IMAGES = 'https://feeds.i-media.ru/projects/yvesrocher/new_images'
 """Адрес директории на ftp для изображений."""
 
@@ -22,15 +19,6 @@ DATE_FORMAT = '%Y-%m-%d'
 TIME_FORMAT = '%H:%M:%S'
 """Формат времени по умолчанию."""
 
-PROTOCOL = 'https'
-"""Протокол запроса."""
-
-ADDRESS = 'projects/uvi/new_images'
-"""Путь к файлу."""
-
-DOMEN_FTP = 'feeds.i-media.ru'
-"""Домен FTP-сервера."""
-
 RGB_COLOR_SETTINGS = (255, 255, 255)
 """Цвет RGB холста."""
 
@@ -42,9 +30,6 @@ NUMBER_PIXELS_CANVAS = 40
 
 NUMBER_PIXELS_IMAGE = 200
 """Количество пикселей для подгонки изображения."""
-
-NAME_OF_SHOP = 'furure'
-"""Константа названия магазина."""
 
 NAME_OF_CANVAS = 'canvas.png'
 
@@ -82,3 +67,4 @@ HEADERS = {
     'upgrade-insecure-requests': '1',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
 }
+"""Заголовки для скачивания изображений из фида."""

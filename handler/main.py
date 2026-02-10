@@ -25,6 +25,7 @@ def main():
         )
     image_client = FeedImage(filenames, images=[])
     # image_client.get_images()
+    # image_client.get_images_with_bg()
     images = get_filenames_list(IMAGE_FOLDER)
 
     if not images:
@@ -34,7 +35,8 @@ def main():
         )
 
     image_client.images = images
-    image_client.add_frame()
+    image_client.add_background()
+    # image_client.add_ai_bg()
 
     # for filename in filenames:
     #     handler_client = FeedHandler(filename)
