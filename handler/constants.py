@@ -52,12 +52,15 @@ ENCODING = 'utf-8'
 """Кодировка по умолчанию."""
 
 HEADERS = {
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/'
+    'avif,image/webp,image/apng,*/*;q=0.8,application/'
+    'signed-exchange;v=b3;q=0.7',
     'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     'cache-control': 'max-age=0',
     'priority': 'u=0, i',
     'referer': 'https://www.yves-rocher.ru/',
-    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";'
+    'v="99"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
     'sec-fetch-dest': 'document',
@@ -65,6 +68,7 @@ HEADERS = {
     'sec-fetch-site': 'same-origin',
     'sec-fetch-user': '?1',
     'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
 }
 """Заголовки для скачивания изображений из фида."""

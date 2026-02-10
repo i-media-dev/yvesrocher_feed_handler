@@ -11,9 +11,9 @@
 *.csv
 *.xml
 *.tmp
-*.yml
+temp_feeds/*.yml
 env/
 __pycache__/
 .env
 MANIFEST.in
-!frame/
+!frame/*.png

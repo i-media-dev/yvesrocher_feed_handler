@@ -1,8 +1,8 @@
 import logging
 
-from handler.constants import FEEDS_FOLDER, IMAGE_FOLDER, NEW_FEEDS_FOLDER
+from handler.constants import FEEDS_FOLDER, IMAGE_FOLDER  # NEW_FEEDS_FOLDER
 from handler.decorators import time_of_function, time_of_script
-from handler.feeds_handler import FeedHandler
+# from handler.feeds_handler import FeedHandler
 from handler.feeds_save import FeedSaver
 from handler.image_handler import FeedImage
 from handler.logging_config import setup_logging
