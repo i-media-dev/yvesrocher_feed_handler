@@ -1,7 +1,7 @@
 import logging
 import xml.etree.ElementTree as ET
 
-from handler.constants import (ADDRESS_FTP_IMAGES, FEEDS_FOLDER,
+from handler.constants import (ADDRESS_FTP_IMAGES, CUSTOM_LABEL, FEEDS_FOLDER,
                                NEW_FEEDS_FOLDER, NEW_IMAGE_FOLDER)
 from handler.decorators import time_of_function
 from handler.feeds import FEEDS
@@ -41,6 +41,10 @@ class FeedHandler(FileMixin):
             self._root = self._get_root(self.filename, self.feeds_folder)
         return self._root
 
+    @staticmethod
+    def check_parity(offer_id: int) -> int:
+        return int(offer_id) % 2
+
     @time_of_function
     def replace_images(self):
         """Метод, подставляющий в фиды новые изображения."""
@@ -52,21 +56,24 @@ class FeedHandler(FileMixin):
             offers = self.root.findall('.//offer')
             for offer in offers:
                 offer_id = offer.get('id')
+
                 if not offer_id:
                     continue
 
                 if offer_id in image_dict:
                     pictures = offer.findall('picture')
-                    for picture in pictures:
-                        offer.remove(picture)
-                    deleted_images += len(pictures)
 
-                    picture_tag = ET.SubElement(offer, 'picture')
-                    picture_tag.text = (
-                        f'{ADDRESS_FTP_IMAGES}/{image_dict[offer_id]}'
-                    )
-                    input_images += 1
-                    self._is_modified = True
+                    if self.check_parity(int(offer_id)):
+                        for picture in pictures:
+                            offer.remove(picture)
+                        deleted_images += len(pictures)
+
+                        picture_tag = ET.SubElement(offer, 'picture')
+                        picture_tag.text = (
+                            f'{ADDRESS_FTP_IMAGES}/{image_dict[offer_id]}'
+                        )
+                        input_images += 1
+                        self._is_modified = True
             logging.info(
                 '\nКоличество удаленных изображений - %s'
                 '\nКоличество добавленных изображений - %s',
@@ -76,6 +83,45 @@ class FeedHandler(FileMixin):
             return self
         except Exception as error:
             logging.error('Ошибка в image_replacement: %s', error)
+            raise
+
+    def add_custom_label(self):
+        even_custom_label = 0
+        odd_custom_label = 0
+        count_custom_label = 0
+        try:
+            offers = self.root.findall('.//offer')
+            for offer in offers:
+                offer_id = offer.get('id')
+                if offer_id:
+                    int_offer_id = int(offer_id)
+                custom_label = ET.SubElement(offer, 'custom_label')
+                parity = self.check_parity(int_offer_id)
+                if parity:
+                    even_custom_label += 1
+                else:
+                    odd_custom_label += 1
+                custom_label.text = CUSTOM_LABEL[parity]
+                self._is_modified = True
+                count_custom_label += 1
+            logging.info(
+                'Всего добавлено custom_label - %s',
+                count_custom_label
+            )
+            logging.info(
+                'Всего добавлено дизайнерских custom_label - %s',
+                even_custom_label
+            )
+            logging.info(
+                'Всего добавлено стоковых custom_label - %s',
+                odd_custom_label
+            )
+            return self
+        except Exception as error:
+            logging.error(
+                'Неожиданная ошибка при добавлении custom_label: %s',
+                error
+            )
             raise
 
     def delete_offers(self):
@@ -98,6 +144,7 @@ class FeedHandler(FileMixin):
                 'Удалено %s офферов с categoryId == 0',
                 deleted_offers
             )
+            self._is_modified = True
             return self
         except Exception as error:
             logging.error('Неизвестная ошибка в delete_offers: %s', error)

@@ -72,3 +72,9 @@ HEADERS = {
     'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
 }
 """Заголовки для скачивания изображений из фида."""
+
+CUSTOM_LABEL = {
+    0: 'new_iamge',
+    1: 'old_image'
+}
+"""Текст для тега custom_label."""
