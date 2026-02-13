@@ -7,7 +7,7 @@ from PIL import Image
 
 from handler.constants import (FEEDS_FOLDER, FRAME_FOLDER, HEADERS,
                                IMAGE_FOLDER, NAME_OF_CANVAS, NEW_IMAGE_FOLDER)
-from handler.decorators import time_of_function
+from handler.decorators import retry_photoroom, time_of_function
 from handler.exceptions import DirectoryCreationError, EmptyFeedsListError
 from handler.logging_config import setup_logging
 from handler.mixins import FileMixin
@@ -126,30 +126,26 @@ class FeedImage(FileMixin):
                 error
             )
 
+    @retry_photoroom()
     def _remove_bg(self, filepath, imagename):
         file_path = Path(filepath) / imagename
         api_key = os.getenv('RM_BG_API_KEY')
 
-        try:
-            with open(file_path, 'rb') as f:
-                response = requests.post(
-                    'https://image-api.photoroom.com/v2/edit',
-                    files={"imageFile": f},
-                    data={
-                        "removeBackground": "true"
-                    },
-                    headers={
-                        "x-api-key": api_key
-                    },
-                    timeout=60
-                )
-            response.raise_for_status()
-            logging.info('Фон успешно удалён PhotoRoom')
-            return response.content
-
-        except Exception as error:
-            logging.error('Ошибка удаления фона: %s', error)
-            return None
+        with open(file_path, 'rb') as f:
+            response = requests.post(
+                'https://image-api.photoroom.com/v2/edit',
+                files={"imageFile": f},
+                data={
+                    "removeBackground": "true"
+                },
+                headers={
+                    "x-api-key": api_key
+                },
+                timeout=60
+            )
+        response.raise_for_status()
+        logging.info('Фон успешно удалён PhotoRoom')
+        return response.content
 
     @time_of_function
     def get_images(self):

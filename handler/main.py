@@ -35,7 +35,7 @@ def main():
         )
 
     image_client.images = images
-    image_client.add_background()
+    # image_client.add_background()
     # image_client.add_ai_bg()
 
     # for filename in filenames:

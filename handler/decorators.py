@@ -1,6 +1,7 @@
 import functools
 import json
 import logging
+import random
 import time
 from datetime import datetime as dt
 from http.client import IncompleteRead
@@ -161,3 +162,68 @@ def try_except(func):
                 return False
             raise
     return wrapper
+
+
+def retry_photoroom(
+    max_attempts: int = 5,
+    base_delay: float = 2.0,
+    max_delay: float = 30.0,
+):
+    """
+    Retry специально для PhotoRoom API:
+    - retry при сетевых ошибках
+    - retry при HTTP 429 и 5xx
+    - exponential backoff + jitter
+    """
+
+    retry_http_codes = {429, 500, 502, 503, 504}
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+
+                except requests.exceptions.HTTPError as error:
+                    status = error.response.status_code
+
+                    if status not in retry_http_codes:
+                        raise
+
+                    reason = f'HTTP {status}'
+
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout,
+                    requests.exceptions.ChunkedEncodingError,
+                    ConnectionResetError,
+                    ConnectionAbortedError,
+                ) as error:
+                    reason = type(error).__name__
+
+                if attempt == max_attempts:
+                    logging.error(
+                        'PhotoRoom так и не ответил после %s попыток',
+                        max_attempts,
+                    )
+                    raise
+
+                delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+                jitter = random.uniform(0.5, 1.5)
+                delay *= jitter
+
+                logging.warning(
+                    'PhotoRoom ошибка (%s). '
+                    'Попытка %s/%s с задержкой %.1f сек',
+                    reason,
+                    attempt,
+                    max_attempts,
+                    delay,
+                )
+
+                time.sleep(delay)
+
+        return wrapper
+    return decorator
